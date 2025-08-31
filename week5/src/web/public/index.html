@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据统计系统 - 高性能数据分析</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .stats-card {
+            transition: all 0.3s ease;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="min-h-screen gradient-bg">
+    <div class="container mx-auto px-4 py-8">
+        <!-- 头部 -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">
+                <i class="fas fa-chart-line mr-3"></i>
+                数据统计系统
+            </h1>
+            <p class="text-blue-200 text-lg">高性能数据分析与可视化平台</p>
+        </header>
+
+        <!-- 文件上传区域 -->
+        <div class="glass-card rounded-2xl p-8 mb-8 fade-in">
+            <div class="text-center">
+                <div class="mb-6">
+                    <i class="fas fa-cloud-upload-alt text-6xl text-white opacity-60 mb-4"></i>
+                    <h2 class="text-2xl font-semibold text-white mb-2">上传数据文件</h2>
+                    <p class="text-blue-200">支持 JSON 格式文件，最大 100MB</p>
+                </div>
+                
+                <div class="relative">
+                    <input type="file" id="fileInput" accept=".json" 
+                           class="hidden" onchange="handleFileSelect(event)">
+                    <label for="fileInput" 
+                           class="inline-flex items-center px-8 py-4 bg-white bg-opacity-20 hover:bg-opacity-30 
+                                  text-white font-semibold rounded-xl cursor-pointer transition-all duration-300
+                                  border-2 border-white border-opacity-30 hover:border-opacity-50">
+                        <i class="fas fa-file-upload mr-3"></i>
+                        选择文件
+                    </label>
+                </div>
+                
+                <div id="fileInfo" class="mt-4 text-blue-200 hidden"></div>
+            </div>
+        </div>
+
+        <!-- 计算按钮 -->
+        <div class="text-center mb-8">
+            <button id="calculateBtn" 
+                    class="px-12 py-4 bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600
+                           text-white font-bold rounded-xl shadow-lg transform transition-all duration-300
+                           hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                    onclick="calculateStats()" disabled>
+                <i class="fas fa-calculator mr-3"></i>
+                开始计算统计
+            </button>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingSection" class="hidden text-center mb-8">
+            <div class="glass-card rounded-2xl p-8">
+                <div class="loading-spinner text-white text-4xl mb-4">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <h3 class="text-white text-xl font-semibold mb-2">正在计算统计数据...</h3>
+                <p class="text-blue-200">请稍候，系统正在高速处理您的数据</p>
+                <div id="processingInfo" class="mt-4 text-blue-200"></div>
+            </div>
+        </div>
+
+        <!-- 性能信息 -->
+        <div id="performanceSection" class="hidden mb-8">
+            <div class="glass-card rounded-2xl p-6">
+                <h3 class="text-white text-xl font-semibold mb-4">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    性能指标
+                </h3>
+                <div id="performanceMetrics" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+            </div>
+        </div>
+
+        <!-- 统计结果 -->
+        <div id="resultsSection" class="hidden space-y-8">
+            <!-- 按地区统计 -->
+            <div class="glass-card rounded-2xl p-8 fade-in">
+                <h3 class="text-2xl font-bold text-white mb-6">
+                    <i class="fas fa-globe-americas mr-3"></i>
+                    按地区统计
+                </h3>
+                <div id="regionStats" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+            </div>
+
+            <!-- 按地区和年份统计 -->
+            <div class="glass-card rounded-2xl p-8 fade-in">
+                <h3 class="text-2xl font-bold text-white mb-6">
+                    <i class="fas fa-calendar-alt mr-3"></i>
+                    按地区和年份统计
+                </h3>
+                <div id="regionYearStats" class="space-y-6"></div>
+            </div>
+
+            <!-- 按资源统计 -->
+            <div class="glass-card rounded-2xl p-8 fade-in">
+                <h3 class="text-2xl font-bold text-white mb-6">
+                    <i class="fas fa-seedling mr-3"></i>
+                    按资源类型统计
+                </h3>
+                <div id="resourceStats" class="grid grid-cols-1 lg:grid-cols-2 gap-6"></div>
+            </div>
+
+            <!-- 全局权重统计 -->
+            <div class="glass-card rounded-2xl p-8 fade-in">
+                <h3 class="text-2xl font-bold text-white mb-6">
+                    <i class="fas fa-weight mr-3"></i>
+                    全局权重统计
+                </h3>
+                <div id="weightStats" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div>
+            </div>
+        </div>
+
+        <!-- Performance 分析提示 -->
+        <div id="performanceTip" class="hidden mt-8">
+            <div class="glass-card rounded-2xl p-6 border-yellow-400 border-2">
+                <h4 class="text-yellow-300 text-lg font-semibold mb-2">
+                    <i class="fas fa-lightbulb mr-3"></i>
+                    性能分析提示
+                </h4>
+                <p class="text-yellow-100">
+                    打开浏览器开发者工具 (F12) → Performance 面板 → 点击录制按钮 → 重新进行计算 → 停止录制，即可查看详细的性能火焰图。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let calculationStartTime = null;
+
+        // 文件选择处理
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedFile = file;
+            const fileInfo = document.getElementById('fileInfo');
+            const calculateBtn = document.getElementById('calculateBtn');
+
+            if (file.type !== 'application/json') {
+                fileInfo.className = 'mt-4 text-red-300';
+                fileInfo.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>请选择 JSON 格式文件';
+                fileInfo.classList.remove('hidden');
+                calculateBtn.disabled = true;
+                return;
+            }
+
+            fileInfo.className = 'mt-4 text-green-300';
+            fileInfo.innerHTML = `
+                <i class="fas fa-check-circle mr-2"></i>
+                文件已选择: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)
+            `;
+            fileInfo.classList.remove('hidden');
+            calculateBtn.disabled = false;
+        }
+
+        // 执行统计计算
+        async function calculateStats() {
+            if (!selectedFile) return;
+
+            calculationStartTime = performance.now();
+            
+            // 显示加载状态
+            document.getElementById('loadingSection').classList.remove('hidden');
+            document.getElementById('resultsSection').classList.add('hidden');
+            document.getElementById('performanceSection').classList.add('hidden');
+            document.getElementById('calculateBtn').disabled = true;
+
+            try {
+                // 读取文件
+                const fileContent = await readFileAsync(selectedFile);
+                let data;
+                
+                try {
+                    data = JSON.parse(fileContent);
+                    // 处理嵌套的 nodes 结构
+                    if (data.nodes && Array.isArray(data.nodes)) {
+                        data = data.nodes;
+                    }
+                } catch (error) {
+                    throw new Error('文件格式错误，请确保是有效的 JSON 格式');
+                }
+
+                updateProcessingInfo(`正在处理 ${data.length} 条记录...`);
+
+                // 发送到后端计算
+                const response = await fetch('/api/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ data })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '计算失败');
+                }
+
+                const result = await response.json();
+                
+                // 显示结果
+                displayResults(result.data);
+                displayPerformanceMetrics(result.meta);
+                
+                // 隐藏加载状态
+                document.getElementById('loadingSection').classList.add('hidden');
+                document.getElementById('performanceTip').classList.remove('hidden');
+
+            } catch (error) {
+                console.error('计算错误:', error);
+                alert('计算失败: ' + error.message);
+                document.getElementById('loadingSection').classList.add('hidden');
+            } finally {
+                document.getElementById('calculateBtn').disabled = false;
+            }
+        }
+
+        // 读取文件
+        function readFileAsync(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            });
+        }
+
+        // 更新处理信息
+        function updateProcessingInfo(message) {
+            document.getElementById('processingInfo').textContent = message;
+        }
+
+        // 显示性能指标
+        function displayPerformanceMetrics(meta) {
+            const calculationTime = performance.now() - calculationStartTime;
+            const metricsHtml = `
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-300">${calculationTime.toFixed(2)}ms</div>
+                    <div class="text-blue-200">计算耗时</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-300">${meta.totalRecords.toLocaleString()}</div>
+                    <div class="text-blue-200">处理记录数</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-300">${(meta.totalRecords / calculationTime * 1000).toFixed(0)}</div>
+                    <div class="text-blue-200">记录/秒</div>
+                </div>
+            `;
+            document.getElementById('performanceMetrics').innerHTML = metricsHtml;
+            document.getElementById('performanceSection').classList.remove('hidden');
+        }
+
+        // 显示统计结果
+        function displayResults(results) {
+            displayRegionStats(results.byRegion);
+            displayRegionYearStats(results.byRegionAndYear);
+            displayResourceStats(results.byResource);
+            displayWeightStats(results.globalWeight);
+            
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+
+        // 显示地区统计
+        function displayRegionStats(regionStats) {
+            const container = document.getElementById('regionStats');
+            container.innerHTML = Object.entries(regionStats).map(([region, stats]) => `
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6">
+                    <h4 class="text-lg font-semibold text-white mb-4">${region}</h4>
+                    ${createStatsTable(stats)}
+                </div>
+            `).join('');
+        }
+
+        // 显示地区年份统计
+        function displayRegionYearStats(regionYearStats) {
+            const container = document.getElementById('regionYearStats');
+            container.innerHTML = Object.entries(regionYearStats).map(([region, yearStats]) => `
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6">
+                    <h4 class="text-lg font-semibold text-white mb-4">${region}</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        ${Object.entries(yearStats).map(([year, stats]) => `
+                            <div class="bg-white bg-opacity-10 rounded-lg p-4">
+                                <h5 class="text-md font-medium text-blue-200 mb-3">${year} 年</h5>
+                                ${createStatsTable(stats, 'small')}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // 显示资源统计
+        function displayResourceStats(resourceStats) {
+            const container = document.getElementById('resourceStats');
+            container.innerHTML = Object.entries(resourceStats).map(([resource, stats]) => `
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6">
+                    <h4 class="text-lg font-semibold text-white mb-4">${resource}</h4>
+                    ${createStatsTable(stats)}
+                </div>
+            `).join('');
+        }
+
+        // 显示权重统计
+        function displayWeightStats(weightStats) {
+            const container = document.getElementById('weightStats');
+            container.innerHTML = `
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6 text-center">
+                    <h4 class="text-lg font-semibold text-green-300 mb-2">最大值</h4>
+                    <div class="text-2xl font-bold text-white">${weightStats.max.toLocaleString()}</div>
+                </div>
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6 text-center">
+                    <h4 class="text-lg font-semibold text-red-300 mb-2">最小值</h4>
+                    <div class="text-2xl font-bold text-white">${weightStats.min.toLocaleString()}</div>
+                </div>
+                <div class="stats-card bg-white bg-opacity-10 rounded-xl p-6 text-center">
+                    <h4 class="text-lg font-semibold text-blue-300 mb-2">中位数</h4>
+                    <div class="text-2xl font-bold text-white">${weightStats.median.toLocaleString()}</div>
+                </div>
+            `;
+        }
+
+        // 创建统计表格
+        function createStatsTable(stats, size = 'normal') {
+            const textSize = size === 'small' ? 'text-sm' : 'text-base';
+            return `
+                <div class="space-y-2 ${textSize}">
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">平均值:</span>
+                        <span class="text-white font-semibold">${stats.mean.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">最大值:</span>
+                        <span class="text-white font-semibold">${stats.max.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">最小值:</span>
+                        <span class="text-white font-semibold">${stats.min.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">中位数:</span>
+                        <span class="text-white font-semibold">${stats.median.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">总和:</span>
+                        <span class="text-white font-semibold">${stats.sum.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-blue-200">记录数:</span>
+                        <span class="text-white font-semibold">${stats.count.toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
